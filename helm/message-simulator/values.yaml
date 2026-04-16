@@ -1,0 +1,30 @@
+replicaCount: 2
+
+image:
+  repository: my-registry/message-simulator
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1024Mi"
+    cpu: "500m"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "prod"
+  - name: DB_HOST
+    value: "message-simulator-db.production.svc.cluster.local"

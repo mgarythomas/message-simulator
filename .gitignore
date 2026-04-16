@@ -1,0 +1,32 @@
+# Node and dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Turborepo
+.turbo/
+
+# Java and Gradle/Maven
+.gradle/
+.m2/
+build/
+bin/
+out/
+target/
+
+# Frontend builds
+dist/
+dist-ssr/
+.next/
+
+# IDEs and OS
+.idea/
+.vscode/
+.DS_Store
+
+# Testing and Coverage
+coverage/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/

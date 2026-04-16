@@ -1,0 +1,12 @@
+{
+  "name": "message-simulator-e2e",
+  "version": "1.0.0",
+  "description": "E2E Playwright API tests for the message simulator",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.42.1",
+    "@types/node": "^20.11.24"
+  }
+}

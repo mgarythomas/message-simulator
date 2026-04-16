@@ -1,0 +1,89 @@
+image: docker:latest
+
+variables:
+  # Using Sonatype Nexus Registry as specified
+  DOCKER_REGISTRY: "nexus.internal.company.com:5000"
+  BACKEND_IMAGE_NAME: "$DOCKER_REGISTRY/message-simulator/backend"
+  FRONTEND_IMAGE_NAME: "$DOCKER_REGISTRY/message-simulator/frontend"
+  # Trunk based versioning logic: v{Year}.{Month}.{PipelineId}-{ShortHash}
+  VERSION: "v$(date +'%Y.%m').$CI_PIPELINE_IID-$CI_COMMIT_SHORT_SHA"
+  KUBECONFIG: /etc/deploy/config
+
+stages:
+  - build-test
+  - package
+  - deploy-eks
+  - deploy-api-gateway
+
+backend-build-test:
+  stage: build-test
+  image: eclipse-temurin:21-jdk-alpine
+  script:
+    - cd services/backend
+    - ./gradlew build
+  artifacts:
+    when: always
+    reports:
+      junit: services/backend/build/test-results/test/**/TEST-*.xml
+
+e2e-playwright-test:
+  stage: build-test
+  image: mcr.microsoft.com/playwright:v1.42.1-jammy
+  needs:
+    - backend-build-test
+  script:
+    # In a full run, we would spin up backend via bootRun in background here to test
+    - cd services/backend/e2e
+    - npm ci
+    - npm run test
+  artifacts:
+    when: always
+    paths:
+      - services/backend/e2e/playwright-report/
+
+package-backend:
+  stage: package
+  script:
+    - cd services/backend
+    - docker build -t $BACKEND_IMAGE_NAME:$VERSION -t $BACKEND_IMAGE_NAME:latest .
+    - docker push $BACKEND_IMAGE_NAME:$VERSION
+    - docker push $BACKEND_IMAGE_NAME:latest
+  needs:
+    - backend-build-test
+
+package-frontend:
+  stage: package
+  script:
+    - cd services/frontend
+    - docker build -t $FRONTEND_IMAGE_NAME:$VERSION -t $FRONTEND_IMAGE_NAME:latest .
+    - docker push $FRONTEND_IMAGE_NAME:$VERSION
+    - docker push $FRONTEND_IMAGE_NAME:latest
+
+# Helm deploy to EKS 
+deploy-eks:
+  stage: deploy-eks
+  image: dtzar/helm-kubectl:latest
+  script:
+    - echo "Deploying Helm Chart Version $VERSION to EKS"
+    - helm upgrade --install message-simulator ./helm/message-simulator 
+      --set image.repository=$BACKEND_IMAGE_NAME 
+      --set image.tag=$VERSION 
+      --set frontend.image.repository=$FRONTEND_IMAGE_NAME 
+      --set frontend.image.tag=$VERSION
+  environment:
+    name: production
+  only:
+    - main
+
+# Terraform API Gateway setup (Depends on ALB existing)
+deploy-api-gateway:
+  stage: deploy-api-gateway
+  image: hashicorp/terraform:light
+  script:
+    - cd infrastructure/api-gateway
+    - terraform init
+    - terraform apply -auto-approve
+  environment:
+    name: production
+  only:
+    - main

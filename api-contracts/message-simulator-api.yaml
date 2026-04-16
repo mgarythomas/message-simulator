@@ -1,0 +1,172 @@
+openapi: 3.0.3
+info:
+  title: Message Simulator API
+  description: REST API to configure, control, and monitor the message simulator.
+  version: "1.0.0"
+servers:
+  - url: /v1
+
+paths:
+  /status:
+    get:
+      summary: Get the status of the simulator
+      operationId: getStatus
+      responses:
+        '200':
+          description: Simulator status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulatorStatus'
+
+  /start:
+    post:
+      summary: Start the simulator
+      operationId: startSimulator
+      responses:
+        '200':
+          description: Simulator started successfully
+  
+  /stop:
+    post:
+      summary: Stop the simulator
+      operationId: stopSimulator
+      responses:
+        '200':
+          description: Simulator stopped successfully
+
+  /config:
+    get:
+      summary: Get the current configuration of the simulator
+      operationId: getConfig
+      responses:
+        '200':
+          description: Simulator configuration retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulatorConfiguration'
+    post:
+      summary: Update the configuration of the simulator
+      operationId: updateConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulatorConfiguration'
+      responses:
+        '200':
+          description: Simulator configuration updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulatorConfiguration'
+
+  /metrics:
+    get:
+      summary: Get the OpenTelemetry metrics of the simulator
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Simulator metrics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /logs:
+    get:
+      summary: Get simulator transaction logs with filtering
+      operationId: getLogs
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: messageType
+          in: query
+          schema:
+            type: string
+        - name: content
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Simulator logs retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionLog'
+
+components:
+  schemas:
+    SimulatorStatus:
+      type: object
+      properties:
+        running:
+          type: boolean
+        uptime:
+          type: integer
+          description: Uptime in seconds
+
+    SimulatorConfiguration:
+      type: object
+      properties:
+        dbPersistenceEnabled:
+          type: boolean
+          description: Whether to persist transactions to Postgres
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/SimulatorRule'
+
+    SimulatorRule:
+      type: object
+      properties:
+        id:
+          type: string
+        protocol:
+          type: string
+          enum: [REST, SOAP, JMS]
+        matcherContent:
+          type: string
+          description: Regex or XPath/JSONPath to match incoming message body
+        responseTemplate:
+          type: string
+          description: Template to generate response message
+        latencyMs:
+          type: integer
+          description: Injected latency in milliseconds
+
+    TransactionLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        correlationId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        protocol:
+          type: string
+        messageType:
+          type: string
+        requestPayload:
+          type: string
+        responsePayload:
+          type: string
+        latencyMs:
+          type: integer
